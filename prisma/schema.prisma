@@ -1,0 +1,233 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String    @unique
+  password      String
+  phone         String?
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  addresses     Address[]
+  orders        Order[]
+}
+
+model Address {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  street        String
+  number        String
+  complement    String?
+  neighborhood  String
+  city          String
+  state         String
+  zipCode       String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]
+}
+
+model Product {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String
+  image         String
+  size          String   // ex: "100ml", "50ml"
+  concentration String   // ex: "EDP", "EDT", "Parfum"
+  price         Float
+  stock         Int      @default(0)
+  notes         String?  // notas olfativas
+  intensity     String?  // "Leve", "Moderada", "Intensa"
+  durability    String?  // "4-6 horas", "6-8 horas"
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  orderItems    OrderItem[]
+  productionOutputs ProductionOutput[]
+}
+
+model Order {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String      @db.ObjectId
+  addressId     String      @db.ObjectId
+  status        OrderStatus @default(PENDING_PAYMENT)
+  paymentMethod String      // "PIX", "Cartão", "Dinheiro"
+  paymentStatus PaymentStatus @default(PENDING)
+  subtotal      Float
+  total         Float
+  notes         String?
+  paidAt        DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id])
+  address       Address     @relation(fields: [addressId], references: [id])
+  items         OrderItem[]
+  payment       Payment?
+}
+
+model OrderItem {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  orderId    String  @db.ObjectId
+  productId  String  @db.ObjectId
+  quantity   Int
+  price      Float
+  
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  orderId       String        @unique @db.ObjectId
+  amount        Float
+  method        String
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// Estoque de Produção
+model Essence {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  quantityMl    Float    // quantidade em mL
+  cost          Float?   // custo por mL
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  productions   ProductionEssence[]
+}
+
+model Alcohol {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String   @default("Álcool de Cereais")
+  quantityLiters Float   // quantidade em litros
+  cost          Float?   // custo por litro
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  productions   ProductionAlcohol[]
+}
+
+model Bottle {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  model         String
+  size          String   // "50ml", "100ml"
+  quantity      Int
+  cost          Float?   // custo unitário
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  productions   ProductionBottle[]
+}
+
+model BaseFragrance {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  quantity      Int      // unidades prontas
+  cost          Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  productions   ProductionBase[]
+}
+
+// Registro de Produção
+model Production {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  productName   String
+  quantityProduced Int
+  notes         String?
+  createdAt     DateTime @default(now())
+  
+  essences      ProductionEssence[]
+  alcoholUsed   ProductionAlcohol[]
+  bottles       ProductionBottle[]
+  bases         ProductionBase[]
+  outputs       ProductionOutput[]
+}
+
+model ProductionEssence {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  productionId  String     @db.ObjectId
+  essenceId     String     @db.ObjectId
+  quantityUsed  Float      // mL usado
+  
+  production    Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  essence       Essence    @relation(fields: [essenceId], references: [id])
+}
+
+model ProductionAlcohol {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  productionId  String     @db.ObjectId
+  alcoholId     String     @db.ObjectId
+  quantityUsed  Float      // litros usado
+  
+  production    Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  alcohol       Alcohol    @relation(fields: [alcoholId], references: [id])
+}
+
+model ProductionBottle {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  productionId  String     @db.ObjectId
+  bottleId      String     @db.ObjectId
+  quantityUsed  Int
+  
+  production    Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  bottle        Bottle     @relation(fields: [bottleId], references: [id])
+}
+
+model ProductionBase {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  productionId  String         @db.ObjectId
+  baseId        String         @db.ObjectId
+  quantityUsed  Int
+  
+  production    Production     @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  base          BaseFragrance  @relation(fields: [baseId], references: [id])
+}
+
+model ProductionOutput {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  productionId  String     @db.ObjectId
+  productId     String     @db.ObjectId
+  quantity      Int
+  
+  production    Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id])
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
