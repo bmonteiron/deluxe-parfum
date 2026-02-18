@@ -24,15 +24,29 @@ export default function LoginPage() {
         redirect: false,
       })
 
+      console.log('Login result:', result)
+
       if (result?.error) {
         setError('Email ou senha inválidos')
-      } else {
-        router.push('/')
-        router.refresh()
+        setLoading(false)
+      } else if (result?.ok) {
+        // Login bem-sucedido! Vamos buscar a sessão para ver se é admin
+        const response = await fetch('/api/auth/session')
+        const session = await response.json()
+        
+        console.log('Session:', session)
+        
+        if (session?.user?.isAdmin) {
+          console.log('Redirecionando para admin...')
+          window.location.href = '/admin'
+        } else {
+          console.log('Redirecionando para home...')
+          window.location.href = '/'
+        }
       }
     } catch (error) {
+      console.error('Erro no login:', error)
       setError('Erro ao fazer login')
-    } finally {
       setLoading(false)
     }
   }
