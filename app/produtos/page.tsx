@@ -4,7 +4,9 @@ import { prisma } from '@/lib/prisma'
 
 export default async function ProdutosPage() {
   const produtos = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { 
+      isActive: true  // SOMENTE PRODUTOS ATIVOS
+    },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -40,30 +42,32 @@ export default async function ProdutosPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {produtos.map((produto) => (
-            <div key={produto.id} className="card group cursor-pointer hover:shadow-xl transition-shadow">
-              <div className="relative h-64 mb-4 overflow-hidden rounded-lg bg-gray-100">
-                <Image 
-                  src={produto.image} 
-                  alt={produto.name}
-                  fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-serif text-lg">{produto.name}</h3>
-                  <span className="text-xs bg-black text-white px-2 py-1 rounded">
-                    {produto.concentration}
-                  </span>
+            <Link key={produto.id} href={`/produtos/${produto.id}`}>
+              <div className="card group cursor-pointer hover:shadow-xl transition-shadow">
+                <div className="relative h-64 mb-4 overflow-hidden rounded-lg bg-gray-100">
+                  <Image 
+                    src={produto.image} 
+                    alt={produto.name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
                 </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{produto.description}</p>
-                <p className="text-xs text-gray-500">{produto.size}</p>
-                <p className="text-2xl font-bold">R$ {produto.price.toFixed(2)}</p>
-                <button className="btn-primary w-full mt-4">
-                  Adicionar ao Carrinho
-                </button>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-serif text-lg">{produto.name}</h3>
+                    <span className="text-xs bg-black text-white px-2 py-1 rounded">
+                      {produto.concentration}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 line-clamp-2">{produto.description}</p>
+                  <p className="text-xs text-gray-500">{produto.size}</p>
+                  <p className="text-2xl font-bold">R$ {produto.price.toFixed(2)}</p>
+                  <div className="btn-primary w-full mt-4 text-center">
+                    Ver Detalhes
+                  </div>
+                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

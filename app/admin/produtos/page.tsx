@@ -1,140 +1,295 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default async function AdminProdutosPage() {
-  const session = await getServerSession(authOptions)
+interface Product {
+  id: string
+  name: string
+  image: string
+  size: string
+  concentration: string
+  price: number
+  stock: number
+  isActive: boolean
+}
+
+export default function ProdutosAdminPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<string[]>([])
   
-  if (!session || !(session.user as any).isAdmin) {
-    redirect('/login')
+  // Filters
+  const [filterActive, setFilterActive] = useState('all')
+  const [filterStock, setFilterStock] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  useEffect(() => {
+    applyFilters()
+  }, [products, filterActive, filterStock, searchTerm])
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products')
+      const data = await res.json()
+      setProducts(data)
+    } catch (error) {
+      alert('Erro ao carregar produtos')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const produtos = await prisma.product.findMany({
-    orderBy: { createdAt: 'desc' }
-  })
+  const applyFilters = () => {
+    let filtered = [...products]
+
+    // Filter by active status
+    if (filterActive === 'active') {
+      filtered = filtered.filter(p => p.isActive)
+    } else if (filterActive === 'inactive') {
+      filtered = filtered.filter(p => !p.isActive)
+    }
+
+    // Filter by stock
+    if (filterStock === 'low') {
+      filtered = filtered.filter(p => p.stock > 0 && p.stock <= 10)
+    } else if (filterStock === 'out') {
+      filtered = filtered.filter(p => p.stock === 0)
+    }
+
+    // Search
+    if (searchTerm) {
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    setFilteredProducts(filtered)
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    setSelected(selected.length === filteredProducts.length ? [] : filteredProducts.map(p => p.id))
+  }
+
+  const handleBulkActivate = async () => {
+    if (selected.length === 0) return
+    if (!confirm(`Ativar ${selected.length} produto(s)?`)) return
+
+    for (const id of selected) {
+      await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...products.find(p => p.id === id), isActive: true })
+      })
+    }
+    
+    setSelected([])
+    fetchProducts()
+  }
+
+  const handleBulkDeactivate = async () => {
+    if (selected.length === 0) return
+    if (!confirm(`Desativar ${selected.length} produto(s)?`)) return
+
+    for (const id of selected) {
+      await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...products.find(p => p.id === id), isActive: false })
+      })
+    }
+    
+    setSelected([])
+    fetchProducts()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Deletar este produto?')) return
+
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' })
+      fetchProducts()
+    } catch (error) {
+      alert('Erro ao deletar')
+    }
+  }
+
+  if (loading) return <div className="p-8">Carregando...</div>
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-black text-white">
-        <nav className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <Link href="/admin" className="text-2xl font-serif font-bold">
-            DELUXE <span className="text-gold-400">ADMIN</span>
-          </Link>
-          <div className="flex items-center space-x-6">
-            <Link href="/" className="hover:text-gold-400">Ver Loja</Link>
-            <span className="text-sm text-gray-400">{session.user?.name}</span>
-          </div>
-        </nav>
-      </header>
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Produtos</h1>
+        <Link href="/admin/produtos/novo" className="btn-primary">
+          + Novo Produto
+        </Link>
+      </div>
 
-      <div className="flex">
-        <aside className="w-64 bg-white min-h-screen shadow-md">
-          <nav className="p-6 space-y-2">
-            <Link href="/admin" className="block px-4 py-2 rounded hover:bg-gray-100">
-              📊 Dashboard
-            </Link>
-            <Link href="/admin/produtos" className="block px-4 py-2 rounded bg-black text-white">
-              🛍️ Produtos
-            </Link>
-            <Link href="/admin/pedidos" className="block px-4 py-2 rounded hover:bg-gray-100">
-              📦 Pedidos
-            </Link>
-            <Link href="/admin/clientes" className="block px-4 py-2 rounded hover:bg-gray-100">
-              👥 Clientes
-            </Link>
-            <Link href="/admin/estoque" className="block px-4 py-2 rounded hover:bg-gray-100">
-              📋 Estoque de Produção
-            </Link>
-            <Link href="/admin/producao" className="block px-4 py-2 rounded hover:bg-gray-100">
-              🏭 Produção
-            </Link>
-            <Link href="/admin/financeiro" className="block px-4 py-2 rounded hover:bg-gray-100">
-              💰 Financeiro
-            </Link>
-          </nav>
-        </aside>
-
-        <main className="flex-1 p-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">Produtos</h1>
-            <Link href="/admin/produtos/novo" className="btn-primary">
-              + Novo Produto
-            </Link>
+      {/* Filters */}
+      <div className="card mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Buscar</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Nome do produto..."
+              className="input-field"
+            />
           </div>
 
-          <div className="card">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Imagem</th>
-                    <th className="text-left py-3 px-4">Nome</th>
-                    <th className="text-left py-3 px-4">Concentração</th>
-                    <th className="text-left py-3 px-4">Tamanho</th>
-                    <th className="text-left py-3 px-4">Preço</th>
-                    <th className="text-left py-3 px-4">Estoque</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {produtos.map((produto) => (
-                    <tr key={produto.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div className="relative w-16 h-16 bg-gray-100 rounded">
-                          <Image
-                            src={produto.image}
-                            alt={produto.name}
-                            fill
-                            className="object-cover rounded"
-                          />
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-medium">{produto.name}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-black text-white text-xs rounded">
-                          {produto.concentration}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">{produto.size}</td>
-                      <td className="py-3 px-4 font-bold">R$ {produto.price.toFixed(2)}</td>
-                      <td className="py-3 px-4">
-                        <span className={`font-bold ${produto.stock <= 5 ? 'text-red-600' : 'text-green-600'}`}>
-                          {produto.stock}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          produto.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {produto.isActive ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <Link 
-                            href={`/admin/produtos/${produto.id}/editar`}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            ✏️
-                          </Link>
-                          <button className="text-red-600 hover:text-red-800">
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div>
+            <label className="block text-sm font-medium mb-2">Status</label>
+            <select
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value)}
+              className="input-field"
+            >
+              <option value="all">Todos</option>
+              <option value="active">Ativos</option>
+              <option value="inactive">Inativos</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Estoque</label>
+            <select
+              value={filterStock}
+              onChange={(e) => setFilterStock(e.target.value)}
+              className="input-field"
+            >
+              <option value="all">Todos</option>
+              <option value="low">Estoque Baixo (≤10)</option>
+              <option value="out">Sem Estoque</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setFilterActive('all')
+                setFilterStock('all')
+                setSearchTerm('')
+              }}
+              className="btn-outline w-full"
+            >
+              Limpar Filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk Actions */}
+      {selected.length > 0 && (
+        <div className="card mb-6 bg-blue-50 border-blue-200">
+          <div className="flex items-center justify-between">
+            <span className="font-medium">{selected.length} selecionado(s)</span>
+            <div className="space-x-2">
+              <button onClick={handleBulkActivate} className="btn-outline text-sm">
+                Ativar Selecionados
+              </button>
+              <button onClick={handleBulkDeactivate} className="btn-outline text-sm">
+                Desativar Selecionados
+              </button>
             </div>
           </div>
-        </main>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="card overflow-x-auto">
+        <table className="w-full">
+          <thead className="border-b">
+            <tr className="text-left">
+              <th className="p-4">
+                <input
+                  type="checkbox"
+                  checked={selected.length === filteredProducts.length && filteredProducts.length > 0}
+                  onChange={toggleSelectAll}
+                />
+              </th>
+              <th className="p-4">Imagem</th>
+              <th className="p-4">Nome</th>
+              <th className="p-4">Concentração</th>
+              <th className="p-4">Tamanho</th>
+              <th className="p-4">Preço</th>
+              <th className="p-4">Estoque</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((product) => (
+              <tr key={product.id} className="border-b hover:bg-gray-50">
+                <td className="p-4">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(product.id)}
+                    onChange={() => toggleSelect(product.id)}
+                  />
+                </td>
+                <td className="p-4">
+                  <div className="relative w-16 h-16 bg-gray-100 rounded overflow-hidden">
+                    <Image src={product.image} alt={product.name} fill className="object-cover" />
+                  </div>
+                </td>
+                <td className="p-4 font-medium">{product.name}</td>
+                <td className="p-4">
+                  <span className="bg-black text-white px-2 py-1 rounded text-xs">
+                    {product.concentration}
+                  </span>
+                </td>
+                <td className="p-4">{product.size}</td>
+                <td className="p-4">R$ {product.price.toFixed(2)}</td>
+                <td className="p-4">
+                  <span className={product.stock <= 10 ? 'text-red-600 font-bold' : ''}>
+                    {product.stock}
+                  </span>
+                </td>
+                <td className="p-4">
+                  {product.isActive ? (
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Ativo</span>
+                  ) : (
+                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">Inativo</span>
+                  )}
+                </td>
+                <td className="p-4">
+                  <div className="flex space-x-2">
+                    <Link href={`/admin/produtos/${product.id}/editar`} className="text-blue-600 hover:underline">
+                      ✏️
+                    </Link>
+                    <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:underline">
+                      🗑️
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            Nenhum produto encontrado
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 text-sm text-gray-600">
+        Mostrando {filteredProducts.length} de {products.length} produtos
       </div>
     </div>
   )
