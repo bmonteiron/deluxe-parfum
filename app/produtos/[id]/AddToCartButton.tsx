@@ -48,6 +48,9 @@ export default function AddToCartButton({ product }: { product: Product }) {
     // Save to localStorage
     localStorage.setItem('cart', JSON.stringify(cart))
 
+    // Dispatch custom event to update cart counter everywhere
+    window.dispatchEvent(new Event('cartUpdated'))
+
     setTimeout(() => {
       setAdding(false)
       alert('Produto adicionado ao carrinho!')

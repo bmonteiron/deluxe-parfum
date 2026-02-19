@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import AddToCartButton from './AddToCartButton'
+import Header from '@/components/Header'
 
 export default async function ProdutoDetalhePage({ params }: { params: { id: string } }) {
   const produto = await prisma.product.findUnique({
@@ -15,29 +16,7 @@ export default async function ProdutoDetalhePage({ params }: { params: { id: str
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white">
-        <nav className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-serif font-bold">
-            DELUXE <span className="text-gold-400">PARFUM</span>
-          </Link>
-          
-          <div className="hidden md:flex space-x-8">
-            <Link href="/produtos" className="hover:text-gold-400 transition">Produtos</Link>
-            <Link href="/sobre" className="hover:text-gold-400 transition">Sobre</Link>
-            <Link href="/contato" className="hover:text-gold-400 transition">Contato</Link>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Link href="/carrinho" className="hover:text-gold-400 transition">
-              🛒 Carrinho
-            </Link>
-            <Link href="/login" className="btn-secondary text-sm">
-              Entrar
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Product Details */}
       <div className="container mx-auto px-4 py-16">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import Header from '@/components/Header'
 
 interface CartItem {
   id: string
@@ -38,12 +39,14 @@ export default function CarrinhoPage() {
     )
     setCart(newCart)
     localStorage.setItem('cart', JSON.stringify(newCart))
+    window.dispatchEvent(new Event('cartUpdated'))
   }
 
   const removeItem = (id: string) => {
     const newCart = cart.filter(item => item.id !== id)
     setCart(newCart)
     localStorage.setItem('cart', JSON.stringify(newCart))
+    window.dispatchEvent(new Event('cartUpdated'))
   }
 
   const getTotal = () => {
@@ -64,29 +67,7 @@ export default function CarrinhoPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-black text-white">
-        <nav className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-serif font-bold">
-            DELUXE <span className="text-gold-400">PARFUM</span>
-          </Link>
-          
-          <div className="hidden md:flex space-x-8">
-            <Link href="/produtos" className="hover:text-gold-400 transition">Produtos</Link>
-            <Link href="/sobre" className="hover:text-gold-400 transition">Sobre</Link>
-            <Link href="/contato" className="hover:text-gold-400 transition">Contato</Link>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Link href="/carrinho" className="text-gold-400">
-              🛒 Carrinho ({cart.length})
-            </Link>
-            <Link href="/login" className="btn-secondary text-sm">
-              Entrar
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <Header />
 
       {/* Content */}
       <div className="container mx-auto px-4 py-16">
